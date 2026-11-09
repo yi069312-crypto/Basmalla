@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>لوحة التحكم | Ghalyabrand</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--rose:#c25873;--blush:#fff5f7;--line:#ecc9d4;--ink:#2d2424;--mut:#8a6a72}
+*{box-sizing:border-box;margin:0;min-width:0}
+body{font-family:Tajawal,system-ui,sans-serif;background:var(--blush);color:var(--ink);padding:14px;max-width:900px;margin:auto;line-height:1.6}
+h1{color:var(--rose);font-size:1.4rem}
+.box{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:12px}
+.login{max-width:380px;margin:12vh auto 0;text-align:center}.login label,.login input{text-align:start}
+label{display:block;font-weight:700;font-size:.9rem;margin-top:8px}
+input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:12px;font:inherit;background:#fff;margin-top:3px}
+input[type=checkbox]{width:auto;margin:0}
+.btn,.s{border:0;border-radius:22px;padding:9px 18px;font:inherit;font-weight:700;cursor:pointer;background:var(--rose);color:#fff}
+.login .btn{width:100%;margin-top:14px}
+.s{padding:6px 12px;font-size:.85rem;background:#fff;color:var(--rose);border:1px solid var(--rose)}.s.d{color:#b3261e;border-color:#b3261e}
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}.bar h1{flex:1}
+.fl{display:flex;gap:8px;margin-bottom:12px}
+.row{display:flex;gap:10px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:16px;padding:8px;margin-bottom:8px;flex-wrap:wrap}
+.row.off{opacity:.65}
+.row img{width:56px;height:56px;border-radius:12px;object-fit:cover;background:#fde8ed;flex:none}
+.inf{flex:1;min-width:140px}.inf small{display:block;color:var(--mut)}
+.sw{display:flex;gap:4px;align-items:center;font-size:.85rem;margin:0}
+.err{color:#b3261e;margin-top:8px;min-height:1.2em}
+.ov{position:fixed;inset:0;background:#2d242499;display:flex;align-items:flex-end;justify-content:center;z-index:9}
+.sheet{background:var(--blush);width:100%;max-width:560px;max-height:94vh;overflow:auto;border-radius:22px 22px 0 0;padding:16px}
+.cols{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}.cols label{font-weight:400;display:flex;gap:4px;margin:0}
+.pv{width:120px;height:120px;border-radius:14px;object-fit:cover;background:#fde8ed;margin-top:6px;display:block}
+.toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);background:#2d2424;color:#fff;padding:9px 20px;border-radius:30px;opacity:0;pointer-events:none;transition:.3s;z-index:20}
+.toast.show{opacity:1}.toast.err{background:#b3261e;color:#fff;margin:0}
+@media(min-width:700px){.ov{align-items:center}.sheet{border-radius:22px}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="toast" id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="../config.js"></script>
+<script>
+const C=window.GH_CFG||{},B="product-images",$=s=>document.querySelector(s);
+const CATS=[["rings","خواتم"],["bracelets","أساور"],["chains","سلاسل"],["anklets","انسيال"],["bridal","مجوهرات زفاف"],["hand","هاند تشين"],["hair","إكسسوارات شعر"],["charms","تعليقات وميداليات حقائب"]];
+const COLORS=["ذهبي","فضي","وردي","روز جولد","أبيض"],catName=id=>(CATS.find(c=>c[0]===id)||[0,id])[1];
+let sb,products=[],fCat="",fQ="";
+// نبني العناصر بـ createElement/textContent فقط (بدون innerHTML) للحماية من XSS
+function h(t,p={},...k){const e=document.createElement(t);for(const[a,v]of Object.entries(p)){if(a==="class")e.className=v;else if(a.startsWith("on"))e.addEventListener(a.slice(2),v);else if(a in e)e[a]=v;else e.setAttribute(a,v)}k.flat().forEach(c=>e.append(c instanceof Node?c:document.createTextNode(c??"")));return e}
+const app=(...n)=>{$("#app").replaceChildren(...n)};
+const msg=(t,bad)=>{const e=$("#toast");e.textContent=t;e.className="toast show"+(bad?" err":"");clearTimeout(msg.t);msg.t=setTimeout(()=>e.className="toast",3200)};
+
+async function init(){
+  if(!window.supabase||!C.url||/YOUR/i.test(C.url)||!C.anonKey){app(h("p",{class:"box"},"عدّلي ملف config.js بقيم Supabase أولًا (URL و anon key)."));return}
+  sb=supabase.createClient(C.url,C.anonKey);
+  const{data}=await sb.auth.getSession();data.session?listView():loginView();
+}
+function loginView(err){
+  const em=h("input",{type:"email",required:true,autocomplete:"username"}),pw=h("input",{type:"password",required:true,autocomplete:"current-password"}),er=h("div",{class:"err"},err||"");
+  app(h("form",{class:"box login",onsubmit:async e=>{e.preventDefault();er.textContent="";
+    const{error}=await sb.auth.signInWithPassword({email:em.value.trim(),password:pw.value});
+    if(error){er.textContent="الإيميل أو الباسورد غير صحيح.";return}listView()}},
+    h("h1",{},"Ghalyabrand"),h("p",{},"لوحة التحكم"),h("label",{},"الإيميل"),em,h("label",{},"الباسورد"),pw,er,h("button",{class:"btn"},"دخول")));
+}
+function listView(){
+  const q=h("input",{placeholder:"بحث بالاسم...",oninput:e=>{fQ=e.target.value.trim();renderList()}});
+  const c=h("select",{onchange:e=>{fCat=e.target.value;renderList()}},h("option",{value:""},"كل الأقسام"),CATS.map(([id,n])=>h("option",{value:id},n)));
+  app(h("div",{class:"bar"},h("h1",{},"المنتجات"),h("button",{class:"btn",onclick:()=>form()},"+ منتج جديد"),h("button",{class:"s",onclick:async()=>{await sb.auth.signOut();loginView()}},"خروج")),
+    h("div",{class:"fl"},q,c),h("div",{id:"list"}));
+  load();
+}
+async function load(){
+  const{data,error}=await sb.from("products").select("*").order("category").order("sort_order").order("id");
+  if(error){msg("تعذر تحميل المنتجات: "+error.message,1);return}products=data;renderList();
+}
+function renderList(){
+  const l=products.filter(p=>(!fCat||p.category===fCat)&&(!fQ||p.name.includes(fQ)));
+  $("#list").replaceChildren(...(l.length?l.map(row):[h("p",{class:"box"},"لا توجد منتجات.")]));
+}
+function row(p){
+  return h("div",{class:"row"+(p.in_stock?"":" off")},h("img",{src:p.image_url||"",alt:"",loading:"lazy"}),
+    h("div",{class:"inf"},h("b",{},p.name),h("small",{},catName(p.category)+" · "+p.price+" ج.م")),
+    h("label",{class:"sw"},h("input",{type:"checkbox",checked:p.in_stock,onchange:async e=>{const{error}=await sb.from("products").update({in_stock:e.target.checked}).eq("id",p.id);if(error){msg("تعذر التحديث: "+error.message,1);e.target.checked=!e.target.checked;return}p.in_stock=e.target.checked;renderList()}}),"متاح"),
+    h("button",{class:"s",onclick:()=>form(p)},"تعديل"),h("button",{class:"s d",onclick:()=>del(p)},"حذف"));
+}
+async function del(p){
+  if(!confirm("حذف «"+p.name+"» نهائيًا؟"))return;
+  const{error}=await sb.from("products").delete().eq("id",p.id);
+  if(error){msg("تعذر الحذف: "+error.message,1);return}
+  await rmImg(p.image_url);msg("تم الحذف ✓");load();
+}
+async function rmImg(u){
+  if(!u)return;const i=u.indexOf("/"+B+"/");if(i<0)return; // صور Unsplash المؤقتة لا تُحذف
+  try{await sb.storage.from(B).remove([decodeURIComponent(u.slice(i+B.length+2).split("?")[0])])}catch(e){}
+}
+function compress(f){return new Promise((ok,no)=>{const im=new Image(),u=URL.createObjectURL(f);
+  im.onload=()=>{const s=Math.min(1,1000/im.width),c=document.createElement("canvas");c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);
+    const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);
+    c.toBlob(b=>b?ok(b):no(new Error("فشل ضغط الصورة")),"image/jpeg",.8)};
+  im.onerror=()=>no(new Error("ملف الصورة غير صالح"));im.src=u})}
+
+function form(p){
+  const isNew=!p;p=p||{name:"",price:"",description:"",category:CATS[0][0],colors:["ذهبي"],image_url:"",in_stock:true};
+  let file=null,up=null;
+  const n=h("input",{value:p.name,required:true,maxLength:120}),pr=h("input",{type:"number",min:0,step:"any",value:p.price,required:true}),
+    d=h("textarea",{rows:2,value:p.description||"",maxLength:500}),
+    c=h("select",{},CATS.map(([id,t])=>h("option",{value:id,selected:id===p.category},t))),
+    cols=COLORS.map(k=>h("input",{type:"checkbox",value:k,checked:(p.colors||[]).includes(k)})),
+    st=h("input",{type:"checkbox",checked:p.in_stock}),
+    pv=h("img",{class:"pv",alt:"",src:p.image_url||""}),
+    fi=h("input",{type:"file",accept:"image/*",onchange:e=>{const f=e.target.files[0];if(!f)return;
+      if(!f.type.startsWith("image/")||f.size>25e6){msg("اختاري صورة صالحة (أقل من 25MB)",1);e.target.value="";return}file=f;pv.src=URL.createObjectURL(f)}}),
+    bt=h("button",{class:"btn"},"حفظ"),ov=h("div",{class:"ov",onclick:e=>{if(e.target===ov)ov.remove()}});
+  ov.append(h("form",{class:"sheet",onsubmit:async e=>{e.preventDefault();bt.disabled=true;
+    try{
+      const colors=cols.filter(x=>x.checked).map(x=>x.value);if(!colors.length)throw new Error("اختاري لونًا واحدًا على الأقل");
+      let url=p.image_url||null;
+      if(file){up=crypto.randomUUID()+".jpg";const{error}=await sb.storage.from(B).upload(up,await compress(file),{contentType:"image/jpeg",cacheControl:"31536000"});if(error)throw error;url=sb.storage.from(B).getPublicUrl(up).data.publicUrl}
+      const r={name:n.value.trim(),price:+pr.value,description:d.value.trim(),category:c.value,colors,image_url:url,in_stock:st.checked};
+      const{error}=isNew?await sb.from("products").insert(r):await sb.from("products").update(r).eq("id",p.id);
+      if(error)throw error;
+      if(file&&p.image_url)await rmImg(p.image_url);
+      ov.remove();msg("تم الحفظ ✓");load();
+    }catch(x){if(up)try{await sb.storage.from(B).remove([up])}catch(y){}up=null;msg("تعذر الحفظ: "+(x.message||x),1);bt.disabled=false}}},
+    h("h1",{},isNew?"منتج جديد":"تعديل المنتج"),h("label",{},"الاسم"),n,h("label",{},"السعر (ج.م)"),pr,h("label",{},"الوصف"),d,h("label",{},"القسم"),c,
+    h("label",{},"الألوان"),h("div",{class:"cols"},cols.map(x=>h("label",{},x,x.value))),
+    h("label",{},"الصورة (تُضغط تلقائيًا)"),pv,fi,h("label",{class:"sw",style:"margin-top:10px"},st,"متاح للطلب"),
+    h("div",{style:"display:flex;gap:8px;margin-top:14px"},bt,h("button",{type:"button",class:"s",onclick:()=>ov.remove()},"إلغاء"))));
+  document.body.append(ov);
+}
+init();
+</script>
+</body>
+</html>
