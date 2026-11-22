@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer">
+<title>استرجاع كلمة المرور | Ghalyabrand</title>
+<style>*{box-sizing:border-box}body{margin:0;background:#fff6f8;color:#44353b;font:16px system-ui,sans-serif;min-height:100vh;display:grid;place-items:center;padding:24px}.box{background:white;border:1px solid #f1cad7;border-radius:20px;width:100%;max-width:440px;padding:32px;box-shadow:0 12px 40px #8d3e5510}h1{color:#bb4f72;font-size:24px;margin:0 0 10px}p{line-height:1.8;color:#73646b}label{display:block;margin:18px 0 8px}input,button{font:inherit;width:100%;padding:13px 15px;border-radius:10px}input{border:1px solid #dfc3cd;direction:ltr;text-align:left}input:focus{outline:2px solid #c8567b;outline-offset:2px}button{border:0;background:#bb4f72;color:white;cursor:pointer;margin-top:24px}button:disabled{opacity:.6;cursor:wait}a{color:#9c3659}#status{min-height:28px;white-space:pre-wrap;line-height:1.8;margin-top:16px}#status.bad{color:#a11c39}[hidden]{display:none!important}.foot{margin-top:24px;font-size:14px}</style>
+</head>
+<body><main class="box"><h1>Ghalyabrand</h1><p id="intro">استرجاع دخول لوحة التحكم</p>
+<form id="request" hidden><label for="email">إيميل الأدمن</label><input id="email" type="email" autocomplete="username" required><button type="submit">إرسال رابط الاسترجاع</button></form>
+<form id="change" hidden><label for="password">كلمة المرور الجديدة</label><input id="password" type="password" autocomplete="new-password" minlength="12" required><label for="confirm">تأكيد كلمة المرور</label><input id="confirm" type="password" autocomplete="new-password" minlength="12" required><p>استخدم ١٢ حرفًا على الأقل، ولا تشارك كلمة المرور.</p><button type="submit">حفظ كلمة المرور</button></form>
+<div id="status" role="status" aria-live="polite">جارٍ التحقق من رابط الاسترجاع…</div><p class="foot"><a href="./">الرجوع إلى دخول الأدمن</a></p></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script><script src="../config.js"></script>
+<script>
+'use strict';
+const $=s=>document.querySelector(s), cfg=window.GH_CFG||{};
+const recoveryAtStart=new URLSearchParams(location.hash.slice(1)).get('type')==='recovery';
+const status=(text,bad=false)=>{$('#status').textContent=text;$('#status').className=bad?'bad':''};
+let client,ready=false;
+function showChange(){ready=true;$('#request').hidden=true;$('#change').hidden=false;$('#intro').textContent='عيّن كلمة مرور جديدة للأدمن';status('');history.replaceState(null,'',location.pathname);}
+async function start(){
+ if(!window.supabase||!cfg.url||!cfg.anonKey){status('تعذر الاتصال. حاول لاحقًا.',true);return;}
+ client=supabase.createClient(cfg.url,cfg.anonKey);
+ client.auth.onAuthStateChange((event,session)=>{if(event==='PASSWORD_RECOVERY'&&session)showChange()});
+ const {data,error}=await client.auth.getSession();
+ if(recoveryAtStart&&data.session&&!error){showChange();return;}
+ if(!ready){$('#request').hidden=false;status(recoveryAtStart?'رابط الاسترجاع غير صالح أو انتهت صلاحيته. اطلب رابطًا جديدًا.':'أدخل الإيميل المسجل لإرسال رابط استرجاع.',recoveryAtStart);history.replaceState(null,'',location.pathname);}
+}
+$('#request').addEventListener('submit',async e=>{e.preventDefault();const b=e.currentTarget.querySelector('button');b.disabled=true;status('جارٍ إرسال الرابط…');try{const {error}=await client.auth.resetPasswordForEmail($('#email').value.trim(),{redirectTo:new URL('reset.html',location.href).href});if(error)throw error;status('لو الإيميل مسجل، سيصلك رابط الاسترجاع. راجع الوارد والرسائل غير المرغوب فيها.');}catch(e){status('تعذر إرسال الرابط. حاول لاحقًا.',true);}finally{b.disabled=false;}});
+$('#change').addEventListener('submit',async e=>{e.preventDefault();if(!ready)return;if($('#password').value!==$('#confirm').value){status('كلمتا المرور غير متطابقتين.',true);return;}const b=e.currentTarget.querySelector('button');b.disabled=true;status('جارٍ حفظ كلمة المرور…');try{const {error}=await client.auth.updateUser({password:$('#password').value});if(error)throw error;$('#password').value='';$('#confirm').value='';ready=false;$('#change').hidden=true;await client.auth.signOut();status('تم تغيير كلمة المرور بنجاح. يمكنك الآن الرجوع إلى دخول الأدمن.');}catch(e){status('تعذر حفظ كلمة المرور. تأكد من صلاحية الرابط وقوة كلمة المرور، ثم حاول مجددًا.',true);}finally{b.disabled=false;}});
+start().catch(()=>status('تعذر التحقق من الرابط. حاول فتحه مجددًا أو اطلب رابطًا جديدًا.',true));
+</script></body></html>
